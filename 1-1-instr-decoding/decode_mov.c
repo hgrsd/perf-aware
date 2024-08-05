@@ -189,13 +189,13 @@ int main(int argc, char **argv) {
 	int len = 0; 
 
 	if(argc != 2) {
-		fprintf(stderr, "usage: ./%s <filename>", argv[0]);
+		fprintf(stderr, "usage: %s <filename>\n", argv[0]);
 		return 1;
 	}
 
 	FILE *f = fopen(argv[1], "r");
 	if (f == NULL) {
-		fprintf(stderr, "unable to read file %s", argv[1]);
+		fprintf(stderr, "unable to read file %s\n", argv[1]);
 		return 1;
 	}
 
@@ -210,8 +210,6 @@ int main(int argc, char **argv) {
 		Instruction i = parse_inst(ptr);
 		print_instruction(&i);
 	}
-	
-	printf("\n");
 
 	return 0;
 }
