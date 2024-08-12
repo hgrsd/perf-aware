@@ -18,7 +18,7 @@ typedef enum {
   BH,
   DI,
   UNKNOWN_REG
-} REGISTER;
+} Register;
 
 typedef enum {
   MOV,
