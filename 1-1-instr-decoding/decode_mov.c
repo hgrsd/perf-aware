@@ -18,12 +18,12 @@ typedef enum {
   BH,
   DI,
   UNKNOWN_REG
-} Register;
+} reg;
 
 typedef enum {
   MOV,
   UNKNOWN_OP,
-} OPCODE;
+} opcode;
 
 typedef enum {
   MEM_NO_DISP,
@@ -31,18 +31,18 @@ typedef enum {
   MEM_DISP_16,
   REG,
   UNKNOWN_MOD,
-} MOD;
+} mod;
 
 typedef struct {
-  OPCODE opcode;
+  opcode opcode;
   int D;
   int W;
-  MOD mod;
-  REGISTER src;
-  REGISTER dst;
-} Instruction;
+  mod mod;
+  reg src;
+  reg dst;
+} instruction ;
 
-OPCODE parse_opcode(unsigned char b) {
+opcode parse_opcode(unsigned char b) {
   switch (b) {
   case 0x22:
     return MOV;
@@ -52,7 +52,7 @@ OPCODE parse_opcode(unsigned char b) {
   }
 }
 
-MOD parse_mode(unsigned char b) {
+mod parse_mode(unsigned char b) {
   switch (b) {
   case 0b00:
     return MEM_NO_DISP;
@@ -67,7 +67,7 @@ MOD parse_mode(unsigned char b) {
   }
 }
 
-REGISTER parse_register(int W, unsigned char b) {
+reg parse_register(int W, unsigned char b) {
   switch (b) {
   case 0b000:
     return W ? AX : AL;
@@ -90,22 +90,22 @@ REGISTER parse_register(int W, unsigned char b) {
   }
 }
 
-Instruction parse_inst(const unsigned char buf[]) {
+instruction parse_inst(const unsigned char buf[]) {
   int W = buf[0] & 1;
   int D = (buf[0] >> 1) & 1;
-  OPCODE op = parse_opcode(buf[0] >> 2);
+  opcode op = parse_opcode(buf[0] >> 2);
 
-  REGISTER src = parse_register(W, D ? (buf[1] & 7) : (buf[1] >> 3) & 7);
-  REGISTER dst = parse_register(W, D ? ((buf[1] >> 3) & 7) : buf[1] & 7);
-  MOD mod = parse_mode(buf[1] >> 6);
+  reg src = parse_register(W, D ? (buf[1] & 7) : (buf[1] >> 3) & 7);
+  reg dst = parse_register(W, D ? ((buf[1] >> 3) & 7) : buf[1] & 7);
+  mod mod = parse_mode(buf[1] >> 6);
 
-  Instruction ret = {
+  instruction ret = {
       .opcode = op, .W = W, .D = D, .mod = mod, .dst = dst, .src = src};
 
   return ret;
 }
 
-void print_reg(REGISTER *r) {
+void print_reg(reg *r) {
   switch (*r) {
   case AL:
     printf("AL");
@@ -161,7 +161,7 @@ void print_reg(REGISTER *r) {
   }
 }
 
-void print_instruction(Instruction *inst) {
+void print_instruction(instruction *inst) {
   switch (inst->opcode) {
   case MOV:
     printf("MOV ");
@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < len; i += 2) {
     printf("%d: %x %x > ", i, buf[i], buf[i + 1]);
     unsigned char *ptr = buf + i;
-    Instruction i = parse_inst(ptr);
+    instruction i = parse_inst(ptr);
     print_instruction(&i);
   }
 
