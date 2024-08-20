@@ -228,6 +228,8 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
   }
 
   Operand o = {.t = op_type, .operand = op_data};
+
+  (*ip)++;
   return o;
 }
 
@@ -273,8 +275,6 @@ void parse_operands_reg_rm(unsigned char **ip, Operand ops[]) {
 
   ops[0] = dst;
   ops[1] = src;
-
-  (*ip)++;
 }
 
 Instruction parse_mov_im_reg(unsigned char **ip) {
@@ -289,6 +289,16 @@ Instruction parse_mov_im_reg(unsigned char **ip) {
   OpData op = {.mov = {.dst = dst_operand, .src = op_imm}};
   Instruction i = {.op_type = MOV, .op_data = op};
 
+  return i;
+}
+
+Instruction parse_mov_im_rm(unsigned char **ip) {
+  int W = (**ip) & 1;
+  Operand op_dst = parse_rm_operand(W, ip);
+  Operand op_imm = parse_immediate(W, ip);
+  MovOp mov = {.dst = op_dst, .src = op_imm};
+  OpData op = {.mov = mov};
+  Instruction i = {.op_type = MOV, .op_data = op};
   return i;
 }
 
@@ -310,18 +320,40 @@ Instruction parse_add_reg_rm(unsigned char **ip) {
   return i;
 }
 
+Instruction parse_add_im_rm(unsigned char **ip) {
+  int S = ((**ip) >> 1) & 1;
+  int W = **ip & 1;
+  (*ip)++;
+  Operand op_dst = parse_rm_operand(W, ip);
+  Operand op_imm = parse_immediate(S == 0 && W == 1 ? 1 : 0, ip);
+  AddOp add = {.dst = op_dst, .src = op_imm};
+  OpData op = {.add = add};
+  Instruction i = {.op_type = ADD, .op_data = op};
+  return i;
+}
+
 Instruction parse_instr(unsigned char **ip) {
-  unsigned char byte = **ip;
-  if (byte >> 2 == 0b100010) {
+  int b0 = (*ip)[0];
+  int b1 = (*ip)[1];
+
+  if (b0 >> 2 == 0b100010) {
     return parse_mov_reg_rm(ip);
   }
 
-  if (byte >> 4 == 0b1011) {
+  if (b0 >> 1 == 0b1100011 && ((b1 >> 3) & 3) == 0b000) {
+    return parse_mov_im_rm(ip);
+  }
+
+  if (b0 >> 4 == 0b1011) {
     return parse_mov_im_reg(ip);
   }
 
-  if (byte >> 2 == 0b000000) {
+  if (b0 >> 2 == 0b000000) {
     return parse_add_reg_rm(ip);
+  }
+
+  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 3) == 0b000) {
+    return parse_add_im_rm(ip);
   }
 
   Instruction i = {.op_type = UNKNOWN_OP, .op_data = {.unkn = {}}};
