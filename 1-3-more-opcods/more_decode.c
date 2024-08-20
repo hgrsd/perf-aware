@@ -97,11 +97,6 @@ typedef struct Instruction {
   OpData op_data;
 } Instruction;
 
-/**
- * Parse a byte into a mode.
- * This function expects the byte to have been shifted so that only its
- * first two bits are set.
- */
 Mod parse_mode(unsigned char b) {
   switch (b) {
   case 0b00:
@@ -117,11 +112,6 @@ Mod parse_mode(unsigned char b) {
   }
 }
 
-/**
- * Parse a byte into a register based on the W flag.
- * This function expects the byte to have been shifted so that only its
- * first three bits are set.
- */
 Reg parse_register(int W, unsigned char b) {
   switch (b) {
   case 0b000:
@@ -145,10 +135,6 @@ Reg parse_register(int W, unsigned char b) {
   }
 }
 
-/**
- * Parse an operand based on the MOD and RM fields, in a REG/RM type operation.
- * This can return a register-based or memory-based operand.
- */
 Operand parse_rm_operand(int W, unsigned char **ip) {
   Mod mod = parse_mode((**ip) >> 6);
   OperandType op_type;
@@ -156,7 +142,7 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
   int rm = (**ip) & 0b111;
 
   if (mod != REG) {
-    int operand3 = -1;
+    int operand3 = 0;
 
     if (mod == MEM_DISP_8) {
       /** 8 bit displacement: need to read an extra byte */
@@ -192,11 +178,13 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
       op_type = EFFECTIVE_ADDR;
       op_data.e_addr = eal;
     } else if (rm == 0b100) {
-      EffectiveAddr eal = {.operand1 = SI, .operand3 = operand3};
+      EffectiveAddr eal = {
+          .operand1 = SI, .operand2 = NO_REG, .operand3 = operand3};
       op_type = EFFECTIVE_ADDR;
       op_data.e_addr = eal;
     } else if (rm == 0b101) {
-      EffectiveAddr eal = {.operand1 = DI, .operand3 = operand3};
+      EffectiveAddr eal = {
+          .operand1 = DI, .operand2 = NO_REG, .operand3 = operand3};
       op_type = EFFECTIVE_ADDR;
       op_data.e_addr = eal;
     } else if (rm == 0b110) {
@@ -223,12 +211,14 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
         }
         op_data.addr = dal;
       } else {
-        EffectiveAddr eal = {.operand1 = BP, .operand3 = operand3};
+        EffectiveAddr eal = {
+            .operand1 = BP, .operand2 = NO_REG, .operand3 = operand3};
         op_type = EFFECTIVE_ADDR;
         op_data.e_addr = eal;
       }
     } else if (rm == 0b111) {
-      EffectiveAddr eal = {.operand1 = BX};
+      EffectiveAddr eal = {
+          .operand1 = BX, .operand2 = NO_REG, .operand3 = operand3};
       op_data.e_addr = eal;
     }
   } else {
@@ -258,15 +248,6 @@ Operand parse_immediate(int W, unsigned char **ip) {
   return op;
 }
 
-/**
- * Note: this function parses the bytes starting at **ip into operands,
- * placing these in the provided ops array. ops[0] will be set to the
- * destination, and ops[1] to the source.
- *
- * This function will move the instruction pointer along as it parses. It
- * When this function is done, the instruction pointer points at the next
- * unparsed byte.
- */
 void parse_operands_reg_rm(unsigned char **ip, Operand ops[]) {
   int W = **ip & 1;
   int D = (**ip >> 1) & 1;
@@ -296,12 +277,6 @@ void parse_operands_reg_rm(unsigned char **ip, Operand ops[]) {
   (*ip)++;
 }
 
-/**
- * Note: this function parses the bytes starting at **ip into an instruction
- * and will move the instruction pointer along as it does so.
- * When this function is done, the instruction pointer points at the first
- * unparsed byte.
- */
 Instruction parse_mov_im_reg(unsigned char **ip) {
   int W = (**ip) >> 3 & 1;
   Reg dst = parse_register(W, (**ip & 0b111));
@@ -326,6 +301,15 @@ Instruction parse_mov_reg_rm(unsigned char **ip) {
   return i;
 }
 
+Instruction parse_add_reg_rm(unsigned char **ip) {
+  Operand ops[2];
+  parse_operands_reg_rm(ip, ops);
+  AddOp add = {.dst = ops[0], .src = ops[1]};
+  OpData op = {.add = add};
+  Instruction i = {.op_type = ADD, .op_data = op};
+  return i;
+}
+
 Instruction parse_instr(unsigned char **ip) {
   unsigned char byte = **ip;
   if (byte >> 2 == 0b100010) {
@@ -336,9 +320,9 @@ Instruction parse_instr(unsigned char **ip) {
     return parse_mov_im_reg(ip);
   }
 
-  // if (byte >> 2 == 0b000000) {
-  //   return parse_add_reg_rm(ip);
-  // }
+  if (byte >> 2 == 0b000000) {
+    return parse_add_reg_rm(ip);
+  }
 
   Instruction i = {.op_type = UNKNOWN_OP, .op_data = {.unkn = {}}};
   return i;
@@ -412,7 +396,7 @@ void print_operand(Operand *o) {
       print_reg(&o->operand.e_addr.operand2);
     }
 
-    if (o->operand.e_addr.operand3 != -1) {
+    if (o->operand.e_addr.operand3 != 0) {
       printf(" + %d", o->operand.e_addr.operand3);
     }
     printf("]");
