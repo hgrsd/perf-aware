@@ -478,11 +478,11 @@ Instruction parse_instr(unsigned char **ip) {
     return parse_cmp_reg_rm(ip);
   }
 
-  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 0b111) == 0b011) {
+  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 0b111) == 0b111) {
     return parse_cmp_im_rm(ip);
   }
 
-  if (b0 >> 1 == 0b0001110) {
+  if (b0 >> 1 == 0b0011110) {
     return parse_cmp_im_to_acc(ip);
   }
   /** CMP END */
