@@ -241,6 +241,23 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
   return o;
 }
 
+Operand parse_immediate(int W, unsigned char **ip) {
+  int src_lo = **ip;
+  int src_addr = src_lo;
+  if (W) {
+    /** dealing with a 16-bit number; need another byte */
+    (*ip)++;
+    int src_hi = **ip;
+    src_addr = (src_hi << 8) | src_lo;
+  }
+
+  OperandData op_data = {.imm = src_addr};
+  Operand op = {.t = IMMEDIATE, .operand = op_data};
+
+  (*ip)++;
+  return op;
+}
+
 /**
  * Note: this function parses the bytes starting at **ip into operands,
  * placing these in the provided ops array. ops[0] will be set to the
@@ -292,23 +309,10 @@ Instruction parse_mov_im_reg(unsigned char **ip) {
   Operand dst_operand = {.t = REGISTER, .operand = dst_operand_data};
 
   (*ip)++;
-  int src_lo = **ip;
-  int src_addr = src_lo;
-  if (W) {
-    /** dealing with a 16-bit number; need another byte */
-    (*ip)++;
-    int src_hi = **ip;
-    src_addr = (src_hi << 8) | src_lo;
-  }
 
-  OperandData src_operand_data = {.imm = src_addr};
-  Operand src_operand = {.t = IMMEDIATE, .operand = src_operand_data};
-
-  MovOp mov = {.src = src_operand, .dst = dst_operand};
-  OpData op_data = {.mov = mov};
-
-  Instruction i = {.op_type = MOV, .op_data = op_data};
-  (*ip)++;
+  Operand op_imm = parse_immediate(W, ip);
+  OpData op = {.mov = {.dst = dst_operand, .src = op_imm}};
+  Instruction i = {.op_type = MOV, .op_data = op};
 
   return i;
 }
@@ -395,29 +399,29 @@ void print_reg(Reg *r) {
   }
 }
 
-void print_operand(Operand *l) {
-  switch (l->t) {
+void print_operand(Operand *o) {
+  switch (o->t) {
   case DIRECT_ADDR:
-    printf("%d", l->operand.addr.addr);
+    printf("%d", o->operand.addr.addr);
     break;
   case EFFECTIVE_ADDR:
     printf("[");
-    print_reg(&l->operand.e_addr.operand1);
-    if (l->operand.e_addr.operand2 != NO_REG) {
+    print_reg(&o->operand.e_addr.operand1);
+    if (o->operand.e_addr.operand2 != NO_REG) {
       printf(" + ");
-      print_reg(&l->operand.e_addr.operand2);
+      print_reg(&o->operand.e_addr.operand2);
     }
 
-    if (l->operand.e_addr.operand3 != -1) {
-      printf(" + %d", l->operand.e_addr.operand3);
+    if (o->operand.e_addr.operand3 != -1) {
+      printf(" + %d", o->operand.e_addr.operand3);
     }
     printf("]");
     break;
   case REGISTER:
-    print_reg(&l->operand.reg.r);
+    print_reg(&o->operand.reg.r);
     break;
   case IMMEDIATE:
-    printf("%d", l->operand.imm.val);
+    printf("%d", o->operand.imm.val);
     break;
   }
 }
