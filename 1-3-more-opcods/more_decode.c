@@ -91,12 +91,17 @@ typedef struct CmpOp {
   Operand dst;
 } CmpOp;
 
+typedef struct ConditionalJumpOp {
+  int offset;
+} ConditionalJumpOp;
+
 typedef union OpData {
   MovOp mov;
   UnknownOp unkn;
   AddOp add;
   SubOp sub;
   CmpOp cmp;
+  ConditionalJumpOp cond_jmp;
 } OpData;
 
 typedef enum Op {
@@ -104,6 +109,26 @@ typedef enum Op {
   ADD,
   SUB,
   CMP,
+  JE,
+  JL,
+  JLE,
+  JB,
+  JBE,
+  JP,
+  JO,
+  JS,
+  JNE,
+  JNL,
+  JNLE,
+  JNB,
+  JNBE,
+  JNP,
+  JNO,
+  JNS,
+  LOOP,
+  LOOPZ,
+  LOOPNZ,
+  JCXZ,
   UNKNOWN_OP,
 } Op;
 
@@ -488,6 +513,128 @@ Instruction parse_instr(unsigned char **ip) {
   }
   /** CMP END */
 
+  /** CONDITIONAL JUMPS */
+  if (b0 == 0b01110100) {
+    Instruction i = {.op_type = JE, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+  if (b0 == 0b01111100) {
+    Instruction i = {.op_type = JL, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111110) {
+    Instruction i = {.op_type = JLE, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110010) {
+    Instruction i = {.op_type = JB, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110110) {
+    Instruction i = {.op_type = JBE, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111010) {
+    Instruction i = {.op_type = JP, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110000) {
+    Instruction i = {.op_type = JO, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111000) {
+    Instruction i = {.op_type = JS, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110101) {
+    Instruction i = {.op_type = JNE, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111101) {
+    Instruction i = {.op_type = JNL, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111111) {
+    Instruction i = {.op_type = JNLE, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110011) {
+    Instruction i = {.op_type = JNB, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110111) {
+    Instruction i = {.op_type = JNBE, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111011) {
+    Instruction i = {.op_type = JNP, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01110001) {
+    Instruction i = {.op_type = JNO, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b01111001) {
+    Instruction i = {.op_type = JNS, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b11100010) {
+    Instruction i = {.op_type = LOOP, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b11100001) {
+    Instruction i = {.op_type = LOOPZ, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b11100000) {
+    Instruction i = {.op_type = LOOPNZ,
+                     .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+
+  if (b0 == 0b11100011) {
+    Instruction i = {.op_type = JCXZ, .op_data = {.cond_jmp = {.offset = b1}}};
+    (*ip) += 2;
+    return i;
+  }
+  /** CONDITIONAL JUMPS END */
+
   (*ip)++;
   Instruction i = {.op_type = UNKNOWN_OP, .op_data = {.unkn = {}}};
   return i;
@@ -600,6 +747,71 @@ void print_instr(Instruction *i) {
     print_operand(&i->op_data.mov.dst);
     printf(", ");
     print_operand(&i->op_data.mov.src);
+    break;
+  case JE:
+    printf("je %d", i->op_data.cond_jmp.offset);
+    break;
+  case JL:
+    printf("jl %d", i->op_data.cond_jmp.offset);
+    break;
+  case JLE:
+    printf("jle %d", i->op_data.cond_jmp.offset);
+    break;
+  case JB:
+    printf("jle %d", i->op_data.cond_jmp.offset);
+    break;
+  case JBE:
+    printf("jbe %d", i->op_data.cond_jmp.offset);
+    break;
+  case JP:
+    printf("jp %d", i->op_data.cond_jmp.offset);
+    break;
+  case JO:
+    printf("jo %d", i->op_data.cond_jmp.offset);
+    break;
+  case JS:
+    printf("js %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNE:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNL:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNLE:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNB:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNBE:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNP:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNO:
+    printf("jne %d", i->op_data.cond_jmp.offset);
+    break;
+  case JNS:
+    printf("jns %d", i->op_data.cond_jmp.offset);
+    break;
+    break;
+  case LOOP:
+    printf("loop %d", i->op_data.cond_jmp.offset);
+    break;
+    break;
+  case LOOPZ:
+    printf("loopz %d", i->op_data.cond_jmp.offset);
+    break;
+    break;
+  case LOOPNZ:
+    printf("loopnz %d", i->op_data.cond_jmp.offset);
+    break;
+    break;
+  case JCXZ:
+    printf("jxcz %d", i->op_data.cond_jmp.offset);
+    break;
     break;
   case UNKNOWN_OP:
     printf("UNKN");
