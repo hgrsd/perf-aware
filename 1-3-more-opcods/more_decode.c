@@ -80,15 +80,29 @@ typedef struct AddOp {
   Operand dst;
 } AddOp;
 
+typedef struct SubOp {
+  Operand src;
+  Operand dst;
+} SubOp;
+
+typedef struct CmpOp {
+  Operand src;
+  Operand dst;
+} CmpOp;
+
 typedef union OpData {
   MovOp mov;
   UnknownOp unkn;
   AddOp add;
+  SubOp sub;
+  CmpOp cmp;
 } OpData;
 
 typedef enum Op {
   MOV,
   ADD,
+  SUB,
+  CMP,
   UNKNOWN_OP,
 } Op;
 
@@ -142,7 +156,7 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
   int rm = (**ip) & 0b111;
 
   if (mod != REG) {
-    int operand3 = 0;
+    int operand3 = -1;
 
     if (mod == MEM_DISP_8) {
       /** 8 bit displacement: need to read an extra byte */
@@ -332,30 +346,148 @@ Instruction parse_add_im_rm(unsigned char **ip) {
   return i;
 }
 
+Instruction parse_add_im_to_acc(unsigned char **ip) {
+  int W = **ip & 1;
+
+  Register reg = {.r = W ? AX : AL};
+  Operand dst = {.t = REGISTER, .operand = {.reg = reg}};
+  (*ip)++;
+  Operand src = parse_immediate(W, ip);
+  AddOp add = {.dst = dst, .src = src};
+  OpData op = {.add = add};
+  Instruction i = {.op_type = ADD, .op_data = op};
+  return i;
+}
+
+Instruction parse_sub_reg_rm(unsigned char **ip) {
+  Operand ops[2];
+  parse_operands_reg_rm(ip, ops);
+  SubOp sub = {.dst = ops[0], .src = ops[1]};
+  OpData op = {.sub = sub};
+  Instruction i = {.op_type = SUB, .op_data = op};
+  return i;
+}
+
+Instruction parse_sub_im_rm(unsigned char **ip) {
+  int S = ((**ip) >> 1) & 1;
+  int W = **ip & 1;
+  (*ip)++;
+  Operand op_dst = parse_rm_operand(W, ip);
+  Operand op_imm = parse_immediate(S == 0 && W == 1 ? 1 : 0, ip);
+  SubOp sub = {.dst = op_dst, .src = op_imm};
+  OpData op = {.sub = sub};
+  Instruction i = {.op_type = SUB, .op_data = op};
+  return i;
+}
+
+Instruction parse_sub_im_to_acc(unsigned char **ip) {
+  int W = **ip & 1;
+
+  Register reg = {.r = W ? AX : AL};
+  Operand dst = {.t = REGISTER, .operand = {.reg = reg}};
+  (*ip)++;
+  Operand src = parse_immediate(W, ip);
+  SubOp sub = {.dst = dst, .src = src};
+  OpData op = {.sub = sub};
+  Instruction i = {.op_type = SUB, .op_data = op};
+  return i;
+}
+
+Instruction parse_cmp_reg_rm(unsigned char **ip) {
+  Operand ops[2];
+  parse_operands_reg_rm(ip, ops);
+  CmpOp cmp = {.dst = ops[0], .src = ops[1]};
+  OpData op = {.cmp = cmp};
+  Instruction i = {.op_type = CMP, .op_data = op};
+  return i;
+}
+
+Instruction parse_cmp_im_rm(unsigned char **ip) {
+  int S = ((**ip) >> 1) & 1;
+  int W = **ip & 1;
+  (*ip)++;
+  Operand op_dst = parse_rm_operand(W, ip);
+  Operand op_imm = parse_immediate(S == 0 && W == 1 ? 1 : 0, ip);
+  CmpOp cmp = {.dst = op_dst, .src = op_imm};
+  OpData op = {.cmp = cmp};
+  Instruction i = {.op_type = CMP, .op_data = op};
+  return i;
+}
+
+Instruction parse_cmp_im_to_acc(unsigned char **ip) {
+  int W = **ip & 1;
+
+  Register reg = {.r = W ? AX : AL};
+  Operand dst = {.t = REGISTER, .operand = {.reg = reg}};
+  (*ip)++;
+  Operand src = parse_immediate(W, ip);
+  CmpOp cmp = {.dst = dst, .src = src};
+  OpData op = {.cmp = cmp};
+  Instruction i = {.op_type = CMP, .op_data = op};
+  return i;
+}
+
 Instruction parse_instr(unsigned char **ip) {
   int b0 = (*ip)[0];
   int b1 = (*ip)[1];
 
+  /** MOV */
   if (b0 >> 2 == 0b100010) {
     return parse_mov_reg_rm(ip);
   }
 
-  if (b0 >> 1 == 0b1100011 && ((b1 >> 3) & 3) == 0b000) {
+  if (b0 >> 1 == 0b1100011 && ((b1 >> 3) & 0b111) == 0b000) {
     return parse_mov_im_rm(ip);
   }
 
   if (b0 >> 4 == 0b1011) {
     return parse_mov_im_reg(ip);
   }
+  /** MOV END */
 
+  /** ADD */
   if (b0 >> 2 == 0b000000) {
     return parse_add_reg_rm(ip);
   }
 
-  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 3) == 0b000) {
+  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 0b111) == 0b000) {
     return parse_add_im_rm(ip);
   }
 
+  if (b0 >> 1 == 0b0000010) {
+    return parse_add_im_to_acc(ip);
+  }
+  /** ADD END */
+
+  /** SUB */
+  if (b0 >> 2 == 0b001010) {
+    return parse_sub_reg_rm(ip);
+  }
+
+  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 0b111) == 0b101) {
+    return parse_sub_im_rm(ip);
+  }
+
+  if (b0 >> 1 == 0b0010110) {
+    return parse_sub_im_to_acc(ip);
+  }
+  /** SUB END */
+
+  /** CMP */
+  if (b0 >> 2 == 0b001110) {
+    return parse_cmp_reg_rm(ip);
+  }
+
+  if (b0 >> 2 == 0b100000 && ((b1 >> 3) & 0b111) == 0b011) {
+    return parse_cmp_im_rm(ip);
+  }
+
+  if (b0 >> 1 == 0b0001110) {
+    return parse_cmp_im_to_acc(ip);
+  }
+  /** CMP END */
+
+  (*ip)++;
   Instruction i = {.op_type = UNKNOWN_OP, .op_data = {.unkn = {}}};
   return i;
 }
@@ -428,7 +560,7 @@ void print_operand(Operand *o) {
       print_reg(&o->operand.e_addr.operand2);
     }
 
-    if (o->operand.e_addr.operand3 != 0) {
+    if (o->operand.e_addr.operand3 != -1) {
       printf(" + %d", o->operand.e_addr.operand3);
     }
     printf("]");
@@ -452,6 +584,18 @@ void print_instr(Instruction *i) {
     break;
   case ADD:
     printf("add ");
+    print_operand(&i->op_data.mov.dst);
+    printf(", ");
+    print_operand(&i->op_data.mov.src);
+    break;
+  case SUB:
+    printf("sub ");
+    print_operand(&i->op_data.mov.dst);
+    printf(", ");
+    print_operand(&i->op_data.mov.src);
+    break;
+  case CMP:
+    printf("cmp ");
     print_operand(&i->op_data.mov.dst);
     printf(", ");
     print_operand(&i->op_data.mov.src);
