@@ -123,6 +123,7 @@ Operand parse_rm_operand(int W, unsigned char **ip) {
     } else if (rm == 0b111) {
       EffectiveAddr eal = {
           .operand1 = BX, .operand2 = NO_REG, .operand3 = operand3};
+      op_type = EFFECTIVE_ADDR;
       op_data.e_addr = eal;
     }
   } else {
