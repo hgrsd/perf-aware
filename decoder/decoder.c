@@ -683,35 +683,3 @@ void print_instr(Instruction *i) {
     break;
   }
 }
-
-int main(int argc, char **argv) {
-  unsigned char buf[1000];
-  int len = 0;
-
-  if (argc != 2) {
-    fprintf(stderr, "usage: %s <filename>\n", argv[0]);
-    return 1;
-  }
-
-  FILE *f = fopen(argv[1], "r");
-  if (f == NULL) {
-    fprintf(stderr, "unable to read file %s\n", argv[1]);
-    return 1;
-  }
-
-  int c;
-  while ((c = getc(f)) != EOF) {
-    buf[len++] = c;
-  }
-
-  unsigned char *ip = buf;
-  unsigned char *end = buf + len;
-
-  while (ip < end) {
-    Instruction i = parse_instr(&ip);
-    print_instr(&i);
-    printf("\n");
-  }
-
-  return 0;
-}
