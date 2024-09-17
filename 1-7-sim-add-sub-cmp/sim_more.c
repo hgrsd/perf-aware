@@ -65,7 +65,7 @@ void print_reg_by_idx(size_t index) {
     printf("di");
 }
 
-uint8_t read_reg(VM *vm, Reg src) { return vm->registers[reg_to_index(src)]; }
+uint16_t read_reg(VM *vm, Reg src) { return vm->registers[reg_to_index(src)]; }
 
 void write_reg(VM *vm, Reg dst, uint16_t value) {
   uint16_t current_value = read_reg(vm, dst);
@@ -73,6 +73,14 @@ void write_reg(VM *vm, Reg dst, uint16_t value) {
   print_reg_by_idx(i);
   printf(": %d -> %d\n", current_value, value);
   vm->registers[reg_to_index(dst)] = value;
+}
+
+void dump_registers(VM *vm) {
+  for (int i = 0; i < 8; i++) {
+    print_reg_by_idx(i);
+    printf(": %d; ", vm->registers[i]);
+  }
+  printf("\n");
 }
 
 void resolve_operands(VM *vm, Operand *operands, uint16_t *resolved_operands,
@@ -89,19 +97,15 @@ void resolve_operands(VM *vm, Operand *operands, uint16_t *resolved_operands,
 
 void update_flags(VM *vm, uint16_t arithm_result) {
   if (arithm_result == 0) {
-    printf("ZF -> 1\n");
     vm->flags |= (1 << 3);
   } else {
-    printf("ZF -> 0\n");
     vm->flags &= ~(1 << 3);
   }
 
   // highest bit set? then set SF
-  if (arithm_result & (1 << 4)) {
-    printf("SF -> 1\n");
+  if (arithm_result & (1 << 15)) {
     vm->flags |= (1 << 4);
   } else {
-    printf("SF -> 0\n");
     vm->flags &= ~(1 << 4);
   }
 }
@@ -127,14 +131,14 @@ void tick(VM *vm) {
     AddOp a = i.op_data.add;
     if (a.dst.t == REGISTER && (a.src.t == REGISTER || a.src.t == IMMEDIATE)) {
       Operand operands[2] = {a.dst, a.src};
-      uint16_t resolved_values[2] = {0, 0};
+      uint16_t resolved_values[2] = {0};
       resolve_operands(vm, operands, resolved_values, 2);
 
       uint16_t result = resolved_values[0] + resolved_values[1];
-      update_flags(vm, result);
       write_reg(vm, a.dst.operand.reg.r, result);
+      update_flags(vm, result);
     }
-  }
+  } break;
 
   case SUB: {
     SubOp s = i.op_data.sub;
@@ -144,10 +148,10 @@ void tick(VM *vm) {
       resolve_operands(vm, operands, resolved_values, 2);
 
       uint16_t result = resolved_values[0] - resolved_values[1];
-      update_flags(vm, result);
       write_reg(vm, s.dst.operand.reg.r, result);
+      update_flags(vm, result);
     }
-  }
+  } break;
 
   case CMP: {
     CmpOp c = i.op_data.cmp;
@@ -159,7 +163,7 @@ void tick(VM *vm) {
       uint16_t result = resolved_values[0] - resolved_values[1];
       update_flags(vm, result);
     }
-  }
+  } break;
 
   default:
     return;
@@ -169,13 +173,6 @@ void tick(VM *vm) {
 void run(VM *vm) {
   while (vm->ip < vm->end) {
     tick(vm);
-  }
-}
-
-void dump_registers(VM *vm) {
-  for (int i = 0; i < 8; i++) {
-    print_reg_by_idx(i);
-    printf(": %d\n", vm->registers[i]);
   }
 }
 
