@@ -1,4 +1,5 @@
 #include "decoder.h"
+#include <stdint.h>
 #include <stdio.h>
 
 Mod parse_mode(unsigned char b) {
@@ -318,6 +319,13 @@ Instruction parse_cmp_im_to_acc(unsigned char **ip) {
   return i;
 }
 
+int offset_ip_inc8(int n) {
+  if (n & 0x80) {
+    return n | ~0xFF;
+  }
+  return n;
+}
+
 Instruction parse_instr(unsigned char **ip) {
   int b0 = (*ip)[0];
   int b1 = (*ip)[1];
@@ -380,96 +388,112 @@ Instruction parse_instr(unsigned char **ip) {
 
   /** CONDITIONAL JUMPS */
   if (b0 == 0b01110100) {
-    Instruction i = {.op_type = JE, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JE,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
   if (b0 == 0b01111100) {
-    Instruction i = {.op_type = JL, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JL,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111110) {
-    Instruction i = {.op_type = JLE, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JLE,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110010) {
-    Instruction i = {.op_type = JB, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JB,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110110) {
-    Instruction i = {.op_type = JBE, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JBE,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111010) {
-    Instruction i = {.op_type = JP, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JP,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110000) {
-    Instruction i = {.op_type = JO, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JO,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111000) {
-    Instruction i = {.op_type = JS, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JS,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110101) {
-    Instruction i = {.op_type = JNE, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNE,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111101) {
-    Instruction i = {.op_type = JNL, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNL,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111111) {
-    Instruction i = {.op_type = JNLE, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNLE,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110011) {
-    Instruction i = {.op_type = JNB, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNB,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110111) {
-    Instruction i = {.op_type = JNBE, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNBE,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111011) {
-    Instruction i = {.op_type = JNP, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNP,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01110001) {
-    Instruction i = {.op_type = JNO, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNO,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
 
   if (b0 == 0b01111001) {
-    Instruction i = {.op_type = JNS, .op_data = {.cond_jmp = {.offset = b1}}};
+    Instruction i = {.op_type = JNS,
+                     .op_data = {.cond_jmp = {.offset = offset_ip_inc8(b1)}}};
     (*ip) += 2;
     return i;
   }
